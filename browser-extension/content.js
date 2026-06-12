@@ -11,7 +11,7 @@ async function execute(tool, params) {
       if (params.selector) {
         const el = document.querySelector(params.selector);
         if (!el) throw new Error(`Element not found: ${params.selector}`);
-        return el.innerText || el.innerHTML;
+        return el.innerText !== '' ? el.innerText : el.innerHTML;
       }
       return document.documentElement.outerHTML;
     }
@@ -37,7 +37,7 @@ async function execute(tool, params) {
       const timeout = params.timeout ?? 10000;
       const interval = 200;
       let elapsed = 0;
-      while (elapsed < timeout) {
+      while (elapsed <= timeout) {
         if (document.querySelector(params.selector)) return 'found';
         await new Promise(r => setTimeout(r, interval));
         elapsed += interval;
