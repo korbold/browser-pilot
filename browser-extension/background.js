@@ -3,6 +3,30 @@ const RECONNECT_MS = 3000;
 const NAVIGATE_TIMEOUT_MS = 30000;
 let ws = null;
 
+// NOTE: allowedDomains is loaded from allowlist.json bundled with the extension.
+// This is a static copy of config/allowlist.json from the project root.
+// After running `browser_allowlist_add` via the MCP server, you must reload the
+// extension (chrome://extensions → Reload) to pick up the updated allowlist.
+let allowedDomains = [];
+
+async function loadAllowlist() {
+  const url = chrome.runtime.getURL('allowlist.json');
+  const res = await fetch(url);
+  const data = await res.json();
+  allowedDomains = data.domains ?? [];
+}
+
+function isDomainAllowed(tabUrl) {
+  try {
+    const hostname = new URL(tabUrl).hostname;
+    return allowedDomains.some(d => hostname === d || hostname.endsWith('.' + d));
+  } catch {
+    return false;
+  }
+}
+
+loadAllowlist();
+
 function connect() {
   ws = new WebSocket(WS_URL);
 
@@ -53,9 +77,18 @@ async function injectContentScript(tabId) {
 async function handleCommand(tool, params) {
   const tab = await getActiveTab();
 
+  // For all DOM tools (not navigate/screenshot), verify the active tab is on an
+  // allowed domain to prevent accidental or malicious access to banking, email, etc.
+  if (tool !== 'navigate' && tool !== 'screenshot') {
+    if (!isDomainAllowed(tab.url)) {
+      throw new Error(`Active tab "${new URL(tab.url).hostname}" is not in the allowlist. Navigate to an allowed domain first.`);
+    }
+  }
+
   if (tool === 'navigate') {
-    await chrome.tabs.update(tab.id, { url: params.url });
-    await new Promise((resolve, reject) => {
+    // Create the promise (and attach the listener) BEFORE calling tabs.update so
+    // fast/cached pages that fire status:'complete' immediately are never missed.
+    const navPromise = new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         chrome.tabs.onUpdated.removeListener(listener);
         reject(new Error(`Navigation timed out after ${NAVIGATE_TIMEOUT_MS}ms`));
@@ -70,6 +103,9 @@ async function handleCommand(tool, params) {
       }
       chrome.tabs.onUpdated.addListener(listener);
     });
+
+    await chrome.tabs.update(tab.id, { url: params.url });
+    await navPromise;
     return 'navigated';
   }
 
