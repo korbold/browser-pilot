@@ -15,7 +15,7 @@ Add to `~/.claude/settings.json` under `mcpServers`:
 ```json
 "browser-pilot": {
   "command": "node",
-  "args": ["/Users/korbold/Developer/Freelancer/browser-pilot/mcp-server/index.js"]
+  "args": ["/path/to/browser-pilot/mcp-server/index.js"]
 }
 ```
 
