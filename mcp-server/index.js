@@ -27,7 +27,7 @@ server.tool(
   { selector: z.string().optional() },
   async ({ selector }) => {
     const data = await sendCommand('get_content', { selector });
-    return { content: [{ type: 'text', text: data }] };
+    return { content: [{ type: 'text', text: String(data) }] };
   }
 );
 
@@ -90,7 +90,7 @@ server.tool(
   {},
   async () => {
     const domains = listDomains();
-    return { content: [{ type: 'text', text: domains.join('\n') }] };
+    return { content: [{ type: 'text', text: domains.length ? domains.join('\n') : '(allowlist is empty)' }] };
   }
 );
 
