@@ -15,13 +15,17 @@ export function startBridge() {
     process.stderr.write('[browser-pilot] Extension connected\n');
 
     ws.on('message', (data) => {
-      const msg = JSON.parse(data.toString());
+      let msg;
+      try {
+        msg = JSON.parse(data.toString());
+      } catch {
+        return; // ignore malformed messages
+      }
       const handler = pending.get(msg.id);
       if (!handler) return;
       clearTimeout(handler.timer);
       pending.delete(msg.id);
       if (msg.success) {
-        // Content script may return { __error } inside data
         if (msg.data && typeof msg.data === 'object' && msg.data.__error) {
           handler.reject(new Error(msg.data.__error));
         } else {
@@ -35,7 +39,20 @@ export function startBridge() {
     ws.on('close', () => {
       extensionSocket = null;
       process.stderr.write('[browser-pilot] Extension disconnected\n');
+      for (const [id, handler] of pending) {
+        clearTimeout(handler.timer);
+        pending.delete(id);
+        handler.reject(new Error('Extension disconnected'));
+      }
     });
+
+    ws.on('error', (err) => {
+      process.stderr.write(`[browser-pilot] Socket error: ${err.message}\n`);
+    });
+  });
+
+  wss.on('error', (err) => {
+    process.stderr.write(`[browser-pilot] WebSocket server error: ${err.message}\n`);
   });
 }
 
