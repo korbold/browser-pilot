@@ -23,3 +23,9 @@ test('listDomains returns array', () => {
   assert.ok(Array.isArray(domains));
   assert.ok(domains.includes('upwork.com'));
 });
+
+test('addDomain rejects invalid domain', () => {
+  assert.throws(() => addDomain('not-a-domain'), /Invalid domain/);
+  assert.throws(() => addDomain(''), /Invalid domain/);
+  assert.throws(() => addDomain('../etc/passwd'), /Invalid domain/);
+});

@@ -19,9 +19,12 @@ export function isAllowed(url) {
 }
 
 export function addDomain(domain) {
+  if (!/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(domain)) {
+    throw new Error(`Invalid domain: "${domain}"`);
+  }
   const config = JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'));
-  if (!config.domains.includes(domain)) {
-    config.domains.push(domain);
+  if (!config.domains.includes(domain.toLowerCase())) {
+    config.domains.push(domain.toLowerCase());
     writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
   }
   return config.domains;
